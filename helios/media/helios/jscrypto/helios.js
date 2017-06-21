@@ -413,6 +413,7 @@ HELIOS.EncryptedVote = Class.extend({
     // keep information about the election around
     this.election_uuid = election.uuid;
     this.election_hash = election.get_hash();
+    
     this.election = election;
      
     if (answers == null)

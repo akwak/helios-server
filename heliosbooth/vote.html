@@ -25,6 +25,7 @@
   <script language="javascript" src="js/jscrypto/helios.js"></script>-->
   
   <script language="javascript" src="js/20160507-helios-booth-compressed.js"></script>
+  <script language="javascript" src="js/qrcode.min.js"></script>
 </head>
 <body>
 <div id="wrapper">
@@ -57,6 +58,8 @@ BOOTH.setup_templates = function() {
 
 // set up the message when navigating away
 BOOTH.started_p = false;
+
+console.log(window.navigator)
 
 window.onbeforeunload = function(evt) {
   if (!BOOTH.started_p)

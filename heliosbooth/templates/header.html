@@ -1,2 +1,6 @@
 <h1 id="election_name">{$T.election.name}</h1>
 <p>&nbsp;</p>
+<div id="qrcode"></div>
+<script type="text/javascript">
+new QRCode(document.getElementById("qrcode"),  BOOTH.election.cast_url);
+</script>
