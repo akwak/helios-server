@@ -205,12 +205,12 @@ HELIOS_PRIVATE_DEFAULT = False
 
 # authentication systems enabled
 #AUTH_ENABLED_AUTH_SYSTEMS = ['password','facebook','twitter', 'google', 'yahoo']
-AUTH_ENABLED_AUTH_SYSTEMS = get_from_env('AUTH_ENABLED_AUTH_SYSTEMS', 'google').split(",")
+AUTH_ENABLED_AUTH_SYSTEMS = get_from_env('AUTH_ENABLED_AUTH_SYSTEMS', 'password,google').split(",")
 AUTH_DEFAULT_AUTH_SYSTEM = get_from_env('AUTH_DEFAULT_AUTH_SYSTEM', None)
 
 # google
-GOOGLE_CLIENT_ID = get_from_env('GOOGLE_CLIENT_ID', '')
-GOOGLE_CLIENT_SECRET = get_from_env('GOOGLE_CLIENT_SECRET', '')
+GOOGLE_CLIENT_ID = get_from_env('GOOGLE_CLIENT_ID', '200614762518-se6hjujef7c21ivhbrvpuofdap24c81n.apps.googleusercontent.com')
+GOOGLE_CLIENT_SECRET = get_from_env('GOOGLE_CLIENT_SECRET', '_i5uaHxcb92_vF5vckK0BzKx')
 
 # facebook
 FACEBOOK_APP_ID = get_from_env('FACEBOOK_APP_ID','')

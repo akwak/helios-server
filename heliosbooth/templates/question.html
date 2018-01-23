@@ -25,7 +25,8 @@ as many as you approve of
 </p>
 
 {#foreach $T.question.answers as answer}
-<div id="answer_label_{$T.question_num}_{$T.answer_ordering[$T.answer$index]}"><input type="checkbox" class="ballot_answer" id="answer_{$T.question_num}_{$T.answer_ordering[$T.answer$index]}" name="answer_{$T.question_num}_{$T.answer_ordering[$T.answer$index]}" value="yes" onclick="BOOTH.click_checkbox({$T.question_num}, {$T.answer_ordering[$T.answer$index]}, this.checked);" /> {$T.question.answers[$T.answer_ordering[$T.answer$index]]}
+<div id="answer_label_{$T.question_num}_{$T.answer_ordering[$T.answer$index]}">
+    <input type="checkbox" class="ballot_answer" id="answer_{$T.question_num}_{$T.answer_ordering[$T.answer$index]}" name="answer_{$T.question_num}_{$T.answer_ordering[$T.answer$index]}" value="yes" onclick="BOOTH.click_checkbox({$T.question_num}, {$T.answer_ordering[$T.answer$index]}, this.checked);" /> {$T.question.answers[$T.answer_ordering[$T.answer$index]]} <span style="background-color:{$T.question.colors[$T.answer$index]};">{$T.question.colors[$T.color_ordering[$T.answer$index]]}</span>
 
 {#if $T.question.answer_urls && $T.question.answer_urls[$T.answer_ordering[$T.answer$index]] && $T.question.answer_urls[$T.answer_ordering[$T.answer$index]] != ""}
 &nbsp;&nbsp;
@@ -39,6 +40,12 @@ as many as you approve of
 <div id="warning_box" style="color: green; text-align:center; font-size: 0.8em; padding-top:10px; padding-bottom: 10px; height:50px;">
 </div>
 
+
+    <div align="center">
+        <span style="font-size: 14pt;">
+Type answer code:
+</span><input id="answer_token">
+        <button onclick="BOOTH.submit_answer_code()">Submit</button></div>
 
 {#if $T.show_reviewall}
 <div style="float: right;">

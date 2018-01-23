@@ -144,6 +144,19 @@ class PublicKey:
       
       return ((left_side == right_side) and (dlog_proof.challenge == expected_challenge))
 
+    def to_dict(self):
+        """
+        Serialize to dictionary.
+        """
+        return {'y' : str(self.y), 'p' : str(self.p), 'g' : str(self.g) , 'q' : str(self.q)}
+
+    toJSONDict = to_dict
+
+    # quick hack FIXME
+    def toJSON(self):
+      import utils
+      return utils.to_json(self.toJSONDict())
+
 
 class SecretKey:
     def __init__(self):
@@ -492,6 +505,7 @@ class ZKProof(object):
       return proof
       
   def verify(self, little_g, little_h, big_g, big_h, p, q, challenge_generator=None):
+    # type: (object, object, object, object, object, object, object) -> object
     """
     Verify a DH tuple proof
     """

@@ -91,4 +91,7 @@ urlpatterns = patterns('',
     (r'^/ballots/(?P<voter_uuid>[^/]+)/all$', voter_votes),
     (r'^/ballots/(?P<voter_uuid>[^/]+)/last$', voter_last_vote),
 
+    # server-side encryption for assistance
+     (r'^/encrypt-booth-ballot$', encrypt_code_ballot),
+
 )

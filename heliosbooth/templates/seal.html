@@ -26,7 +26,9 @@ You will then be guided to re-encrypt your choices for final casting.
 <div style="margin-left: 15px;">&#x2610; <i>No choice selected</i></div>
 {#/if}
 {#foreach $T.choices[$T.question$index] as choice}
-<div style="margin-left: 15px;">&#x2713; {$T.choice}</div>
+<div style="margin-left: 15px;">&#x2713; {$T.choice}
+    <br> <a>{$T.code}</a>
+</div>
 {#/for}
 {#if $T.choices[$T.question$index].length < $T.question.max}
 [you under-voted: you may select up to {$T.question.max}]

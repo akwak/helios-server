@@ -4,7 +4,7 @@ Some basic utils
 
 2010-08-17
 """
-
+from __future__ import unicode_literals
 import json
 
 ## JSON
@@ -24,6 +24,9 @@ def JSONFiletoDict(filename):
   content = f.read()
   f.close()
   return JSONtoDict(content)
+
+def to_json_unicode(d):
+    return json.dumps(d, ensure_ascii=False, sort_keys=True)
     
 
 

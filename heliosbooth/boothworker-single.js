@@ -31,16 +31,17 @@ function do_setup(message) {
 }
 
 function do_encrypt(message) {
+	console.log('message.answer ' + message.answer);
     console.log("encrypting answer for question " + ELECTION.questions[message.q_num]);
 
-    var encrypted_answer = new HELIOS.EncryptedAnswer(ELECTION.questions[message.q_num], message.answer, ELECTION.public_key);
-
+    var encrypted_answer = new HELIOS.EncryptedAnswer(ELECTION.questions[message.q_num], message.answer, ELECTION.public_key, null , message.code);
+	console.log("message code - " + message.code);
     console.log("done encrypting");
 
     // send the result back
     self.postMessage({
 	    'type': 'result',
-      'q_num': message.q_num,
+      	'q_num': message.q_num,
 		  'encrypted_answer': encrypted_answer.toJSONObject(true),
 		  'id':message.id
 		});

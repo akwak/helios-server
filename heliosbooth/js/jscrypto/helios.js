@@ -216,7 +216,7 @@ UTILS.generate_plaintexts = function(pk, min, max) {
 
 
 HELIOS.EncryptedAnswer = Class.extend({
-  init: function(question, answer, pk, progress) {    
+  init: function(question, answer, pk, progress, message_code) {
     // if nothing in the constructor
     if (question == null)
       return;
@@ -226,15 +226,16 @@ HELIOS.EncryptedAnswer = Class.extend({
     this.answer = answer;
 
     // do the encryption
-    var enc_result = this.doEncryption(question, answer, pk, null, progress);
+    var enc_result = this.doEncryption(question, answer, pk, null, progress, message_code);
 
     this.choices = enc_result.choices;
     this.randomness = enc_result.randomness;
     this.individual_proofs = enc_result.individual_proofs;
-    this.overall_proof = enc_result.overall_proof;    
+    this.overall_proof = enc_result.overall_proof;
+    this.code = enc_result.code;
   },
   
-  doEncryption: function(question, answer, pk, randomness, progress) {
+  doEncryption: function(question, answer, pk, randomness, progress, answer_code) {
     var choices = [];
     var individual_proofs = [];
     var overall_proof = null;
@@ -313,12 +314,17 @@ HELIOS.EncryptedAnswer = Class.extend({
           progress.tick();
       }
     }
+
+    // if (answer_code) {
+    //   console.log(answer_code)
+    // }
     
     return {
       'choices' : choices,
       'randomness' : randomness,
       'individual_proofs' : individual_proofs,
-      'overall_proof' : overall_proof
+      'overall_proof' : overall_proof,
+      'code' : answer_code
     };
   },
   
@@ -369,6 +375,12 @@ HELIOS.EncryptedAnswer = Class.extend({
     } else {
       return_obj.overall_proof = null;
     }
+
+    if (this.code != null) {
+        return_obj.code = this.code;
+    } else {
+      return_obj.code = null;
+    }
     
     if (include_plaintext) {
       return_obj.answer = this.answer;
@@ -376,6 +388,7 @@ HELIOS.EncryptedAnswer = Class.extend({
         return r.toJSONObject();
       });
     }
+
     
     return return_obj;
   }
@@ -400,6 +413,9 @@ HELIOS.EncryptedAnswer.fromJSONObject = function(d, election) {
     });
     ea.answer = d.answer;
   }
+
+  console.log('hahaha' + d.code);
+  ea.code = d.code;
   
   return ea;
 };

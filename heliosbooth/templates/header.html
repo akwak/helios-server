@@ -1,6 +1,11 @@
 <h1 id="election_name">{$T.election.name}</h1>
-<p>&nbsp;</p>
-<div id="qrcode"></div>
+<h3 id="session_id">{$T.session_id} </h3>
+<input type="hidden" id="qr_data_pass" value={$T.qr_data}>
+
+    <div align="center" id="qrcode"></div>
+
+
 <script type="text/javascript">
-new QRCode(document.getElementById("qrcode"),  BOOTH.election.cast_url);
+new QRCode(document.getElementById("qrcode"),document.getElementById('qr_data_pass').value);
+
 </script>

@@ -1473,5 +1473,18 @@ def ballot_list(request, election):
   return [v.last_cast_vote().ld_object.short.toDict(complete=True) for v in voters]
 
 
-
+@election_view(frozen=True)
+@return_json
+def encrypt_code_ballot(request, election):
+  """
+  perform the ballot encryption given answers_json, a JSON'ified list of list of answers
+  (list of list because each question could have a list of answers if more than one.)
+  """
+  answer = utils.from_json(request.REQUEST['answers_json'])
+  answer_code = answer['code']
+  answer_permutation = answer['permutation']
+#  answer_permutation = utils.from_json(request.REQUEST['permutation'])
+#  answer_code = utils.from_json(request.REQUEST['code'])
+  ev = homomorphic.EncryptedBoothVote.fromElectionAndAnswers(election, answer_permutation, answer_code )
+  return ev.ld_object.toJSONDict()
 

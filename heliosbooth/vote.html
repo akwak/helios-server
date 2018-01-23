@@ -6,14 +6,13 @@
   <link rel="stylesheet" type="text/css" href="css/booth.css" />
   <link rel="stylesheet" type="text/css" href="css/forms.css" />
 
-<!--
   <script language="javascript" src="js/jscrypto/class.js"></script>
   <script language="javascript" src="js/jscrypto/bigint.dummy.js"></script>
   <script language="javascript" src="js/jscrypto/jsbn.js"></script>
   <script language="javascript" src="js/jscrypto/jsbn2.js"></script>
   <script language="javascript" src="js/jscrypto/sjcl.js"></script>
   <script language="javascript" src="js/underscore-min.js"></script>
-  <script language="javascript" src="js/jquery-1.2.2.min.js"></script>
+  <script language="javascript" src="js/jquery-1.2.6.min.js"></script>
   <script language="javascript" src="js/jquery.query-2.1.5.js"></script>
   <script language="javascript" src="js/jquery-jtemplates.js"></script>
   <script language="javascript" src="js/jquery.json.min.js"></script>
@@ -22,10 +21,15 @@
   <script language="javascript" src="js/jscrypto/elgamal.js"></script>
   <script language="javascript" src="js/jscrypto/sha1.js"></script>
   <script language="javascript" src="js/jscrypto/sha2.js"></script>
-  <script language="javascript" src="js/jscrypto/helios.js"></script>-->
+  <script language="javascript" src="js/jscrypto/helios.js"></script>
   
-  <script language="javascript" src="js/20160507-helios-booth-compressed.js"></script>
+  <!-- <script language="javascript" src="js/20160507-helios-booth-compressed.js"></script> -->
   <script language="javascript" src="js/qrcode.min.js"></script>
+
+
+    <meta http-equiv='cache-control' content='no-cache'>
+<meta http-equiv='expires' content='0'>
+<meta http-equiv='pragma' content='no-cache'>
 </head>
 <body>
 <div id="wrapper">
@@ -59,7 +63,18 @@ BOOTH.setup_templates = function() {
 // set up the message when navigating away
 BOOTH.started_p = false;
 
-console.log(window.navigator)
+
+BOOTH.colors = ['red','blue','grey', 'yellow', 'green'];
+
+make_id = function() {
+  var text = "";
+  var possible = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789";
+
+  for (var i = 0; i < 5; i++)
+    text += possible.charAt(Math.floor(Math.random() * possible.length));
+
+  return text;
+}
 
 window.onbeforeunload = function(evt) {
   if (!BOOTH.started_p)
@@ -98,6 +113,9 @@ BOOTH.setup_ballot = function(election) {
     BOOTH.ballot.answers[i] = [];
     BOOTH.dirty[i] = true;
   });
+
+  //Assistance make answer code blank
+    BOOTH.answer_code = null;
 };
 
 // all ciphertexts to null
@@ -149,6 +167,10 @@ BOOTH.setup_workers = function(election_raw_json) {
   }
 };
 
+
+//Assistance
+BOOTH.session_id = make_id();
+
 function escape_html(content) {
   return $('<div/>').text(content).html();
 }
@@ -196,7 +218,17 @@ BOOTH.setup_election = function(raw_json, election_metadata) {
     BOOTH.election.question_answer_orderings[i] = ordering;
   });
 
-  $('#header').processTemplate({'election' : BOOTH.election, 'election_metadata': BOOTH.election_metadata});
+    BOOTH.election.question_color_orderings = [];
+    $(BOOTH.election.questions).each(function(i, question) {
+        var ordering = new Array(question.answers.length);
+        $(ordering).each(function(j, answer) {ordering[j]=j;});
+        question.colors = BOOTH.colors;
+
+        BOOTH.election.question_color_orderings[i] = ordering;
+    });
+
+
+  $('#header').processTemplate({'election' : BOOTH.election, 'election_metadata': BOOTH.election_metadata, 'qr_data': BOOTH.qr_data, "session_id": BOOTH.session_id});
   $('#footer').processTemplate({'election' : BOOTH.election, 'election_metadata': BOOTH.election_metadata});
   BOOTH.setup_ballot();
 };
@@ -215,11 +247,15 @@ BOOTH.launch_async_encryption_answer = function(question_num) {
    BOOTH.answer_timestamps[question_num] = new Date().getTime();
    BOOTH.encrypted_answers[question_num] = null;
    BOOTH.dirty[question_num] = false;
+
+   console.log('aaa ' + BOOTH.answer_code);
+
    BOOTH.worker.postMessage({
       'type' : 'encrypt',
       'q_num': question_num,
       'answer' : BOOTH.ballot.answers[question_num],
-      'id' : BOOTH.answer_timestamps[question_num]
+      'id' : BOOTH.answer_timestamps[question_num],
+       'code' : BOOTH.answer_code
    });
 };
 
@@ -237,6 +273,7 @@ BOOTH.validate_question = function(question_num) {
        // don't mess things up. Using timestamp.
        // check if dirty
        if (BOOTH.dirty[question_num]) {
+           console.log("async enc");
          BOOTH.launch_async_encryption_answer(question_num);
        }
     }
@@ -244,9 +281,17 @@ BOOTH.validate_question = function(question_num) {
 };
 
 BOOTH.validate_and_confirm = function(question_num) {
-  if (BOOTH.validate_question(question_num)) {
+ // if (BOOTH.validate_question(question_num)) {
       BOOTH.seal_ballot();
-  }
+ // }
+};
+
+
+BOOTH.get_qr_data = function() {
+  $.post('/assistance/sign_b64', JSON.stringify({'session_id': BOOTH.session_id}), function(result) {
+    BOOTH.qr_data = result;
+    console.log(result)
+  });
 };
 
 BOOTH.next = function(question_num) {
@@ -294,7 +339,9 @@ BOOTH.show_question = function(question_num) {
   BOOTH.show($('#question_div')).processTemplate({'question_num' : question_num,
                       'last_question_num' : BOOTH.election.questions.length - 1,
                       'question' : BOOTH.election.questions[question_num], 'show_reviewall' : BOOTH.all_questions_seen,
-		      'answer_ordering': BOOTH.election.question_answer_orderings[question_num]
+		      'answer_ordering': BOOTH.election.question_answer_orderings[question_num],
+              'colors' : BOOTH.colors,
+              'color_ordering': BOOTH.election.question_color_orderings[question_num]
                 });
 
   // fake clicking through the answers, to trigger the disabling if need be
@@ -409,6 +456,7 @@ BOOTH.so_lets_go = function () {
     // election URL
     var election_url = $.query.get('election_url');
     BOOTH.load_and_setup_election(election_url);
+    BOOTH.get_qr_data()
 };
 
 BOOTH.nojava = function() {
@@ -454,14 +502,15 @@ BOOTH.check_encryption_status = function() {
 BOOTH._after_ballot_encryption = function() {
     // if already serialized, use that, otherwise serialize
     BOOTH.encrypted_vote_json = BOOTH.encrypted_ballot_serialized || JSON.stringify(BOOTH.encrypted_ballot.toJSONObject());
-
     var do_hash = function() {
        BOOTH.encrypted_ballot_hash = b64_sha256(BOOTH.encrypted_vote_json); // BOOTH.encrypted_ballot.get_hash();
        window.setTimeout(show_cast, 0);
     };
 
     var show_cast = function() {
-      $('#seal_div').processTemplate({'cast_url': BOOTH.election.cast_url,
+     //        $('#seal_div').processTemplate({'cast_url': BOOTH.election.cast_url,
+
+      $('#seal_div').processTemplate({'cast_url':  '/assistance' +  BOOTH .election_url.substring(7) + "/encrypt-ballot",
         'encrypted_vote_json': BOOTH.encrypted_vote_json,
         'encrypted_vote_hash' : BOOTH.encrypted_ballot_hash,
         'election_uuid' : BOOTH.election.uuid,
@@ -469,7 +518,10 @@ BOOTH._after_ballot_encryption = function() {
         'election': BOOTH.election,
         'election_metadata': BOOTH.election_metadata,
         'questions' : BOOTH.election.questions,
-        'choices' : BALLOT.pretty_choices(BOOTH.election, BOOTH.ballot)});
+        'choices' : BALLOT.pretty_choices(BOOTH.election, BOOTH.ballot),
+        'code' : BOOTH.answer_code
+      });
+
       BOOTH.show($('#seal_div'));
       BOOTH.encrypted_vote_json = null;
     };
@@ -504,6 +556,7 @@ BOOTH.wait_for_ciphertexts = function() {
 
 BOOTH.seal_ballot_raw = function() {
     if (BOOTH.synchronous) {
+        //console.log('assistance - sync');
       BOOTH.progress = new UTILS.PROGRESS();
       var progress_interval = setInterval("BOOTH.check_encryption_status()", 500);
       BOOTH.encrypted_ballot = new HELIOS.EncryptedVote(BOOTH.election, BOOTH.ballot.answers, BOOTH.progress);
@@ -515,7 +568,43 @@ BOOTH.seal_ballot_raw = function() {
     }
 };
 
+BOOTH.request_code_ballot_encryption = function() {
+    BOOTH.ballot.code_answers = {};
+    BOOTH.ballot.code_answers['code'] = BOOTH.answer_code;
+    BOOTH.ballot.code_answers['permutation'] = BOOTH.election.question_color_orderings;
+
+    console.log($.toJSON(BOOTH.ballot.code_answers));
+    $.post(BOOTH.election_url + '/encrypt-booth-ballot', {'answers_json': $.toJSON(BOOTH.ballot.code_answers)}, function(result) {
+        BOOTH.encrypted_ballot_with_plaintexts_serialized = result;
+
+        var ballot_json_obj = $.secureEvalJSON(BOOTH.encrypted_ballot_with_plaintexts_serialized);
+        ballot_json_obj['session_id'] = BOOTH.session_id;
+        BOOTH.encrypted_ballot_serialized = JSON.stringify(ballot_json_obj);
+
+         window.setTimeout(BOOTH._after_ballot_encryption, 0);
+    });
+};
+
+
 BOOTH.request_ballot_encryption = function() {
+        $.post( BOOTH.election_url.substring + "/encrypt-ballot", {'answers_json': $.toJSON(BOOTH.ballot.answers)}, function(result) {
+      //BOOTH.encrypted_ballot = HELIOS.EncryptedVote.fromJSONObject($.secureEvalJSON(result), BOOTH.election);
+      // rather than deserialize and reserialize, which is inherently slow on browsers
+      // that already need to do network requests, just remove the plaintexts
+
+      BOOTH.encrypted_ballot_with_plaintexts_serialized = result;
+      var ballot_json_obj = $.secureEvalJSON(BOOTH.encrypted_ballot_with_plaintexts_serialized);
+      var answers = ballot_json_obj.answers;
+      for (var i=0; i<answers.length; i++) {
+         delete answers[i]['answer'];
+         delete answers[i]['randomness'];
+      }
+
+      BOOTH.encrypted_ballot_serialized = JSON.stringify(ballot_json_obj);
+
+      window.setTimeout(BOOTH._after_ballot_encryption, 0);
+    });
+
     $.post(BOOTH.election_url + "/encrypt-ballot", {'answers_json': $.toJSON(BOOTH.ballot.answers)}, function(result) {
       //BOOTH.encrypted_ballot = HELIOS.EncryptedVote.fromJSONObject($.secureEvalJSON(result), BOOTH.election);
       // rather than deserialize and reserialize, which is inherently slow on browsers
@@ -523,6 +612,7 @@ BOOTH.request_ballot_encryption = function() {
 
       BOOTH.encrypted_ballot_with_plaintexts_serialized = result;
       var ballot_json_obj = $.secureEvalJSON(BOOTH.encrypted_ballot_with_plaintexts_serialized);
+
       var answers = ballot_json_obj.answers;
       for (var i=0; i<answers.length; i++) {
          delete answers[i]['answer'];
@@ -540,12 +630,12 @@ BOOTH.seal_ballot = function() {
 
     // if we don't have the ability to do crypto in the browser,
     // we use the server
-    if (!BigInt.in_browser) {
-      BOOTH.show_encryption_message_before(BOOTH.request_ballot_encryption, true);
-    } else {
-      BOOTH.show_encryption_message_before(BOOTH.seal_ballot_raw, true);
-      $('#percent_done_container').show();
-    }
+//    if (!BigInt.in_browser) {
+      BOOTH.show_encryption_message_before(BOOTH.request_code_ballot_encryption, true);
+//    } else {
+//      BOOTH.show_encryption_message_before(BOOTH.seal_ballot_raw, true);
+//      $('#percent_done_container').show();
+//    }
 };
 
 BOOTH.audit_ballot = function() {
@@ -585,6 +675,21 @@ BOOTH.cast_ballot = function() {
     $('#send_ballot_form').submit();
 };
 
+
+
+// clash attack protection
+BOOTH.submit_session_id = function() {
+    user_session_value = document.getElementById('my_session_token').value;
+    var dict_to_send = {'session_id': BOOTH.session_id + user_session_value};
+    dict_to_send['election_id'] = BOOTH.election.uuid;
+    console.log(dict_to_send)
+    $.post('/assistance/set_user_session_id', JSON.stringify(dict_to_send), function(result) {
+    console.log(result);
+    BOOTH.session_id = BOOTH.session_id + user_session_value;
+    session_id.innerText = BOOTH.session_id;
+  });
+}
+
 BOOTH.show_receipt = function() {
     UTILS.open_window_with_content("Your smart ballot tracker for " + BOOTH.election.name + ": " + BOOTH.encrypted_ballot_hash);
 };
@@ -592,6 +697,12 @@ BOOTH.show_receipt = function() {
 BOOTH.do_done = function() {
   BOOTH.started_p = false;
 };
+
+BOOTH.submit_answer_code = function() {
+    answer_token = document.getElementById('answer_token').value;
+    BOOTH.answer_code = answer_token;
+    alert('your submitted code is ' + answer_token);
+}
 
 </script>
 <div id="page">

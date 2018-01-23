@@ -168,6 +168,7 @@ class EncryptedAnswer(HeliosObject):
     return False
 
   def verify(self, pk, min=0, max=1):
+    # type: (object, object, object) -> object
     possible_plaintexts = self.generate_plaintexts(pk)
     homomorphic_sum = 0
 
@@ -312,6 +313,7 @@ class EncryptedVote(HeliosObject):
   FIELDS = ['encrypted_answers', 'election_hash', 'election_uuid']
 
   def verify(self, election):
+    # type: (object) -> object
     # right number of answers
     if len(self.encrypted_answers) != len(election.questions):
       return False

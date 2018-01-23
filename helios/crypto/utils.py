@@ -2,6 +2,7 @@
 Crypto Utils
 """
 
+from __future__ import unicode_literals
 import hmac, base64, json
 
 from hashlib import sha256

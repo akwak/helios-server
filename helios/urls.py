@@ -12,6 +12,7 @@ urlpatterns = patterns('',
   (r'^testcookie$', test_cookie),
   (r'^testcookie_2$', test_cookie_2),
   (r'^nocookies$', nocookies),
+
   (r'^stats/', include('helios.stats_urls')),
 
   # election shortcut by shortname

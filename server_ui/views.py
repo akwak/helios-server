@@ -64,4 +64,5 @@ def faq(request):
 
 def privacy(request):
   return render_template(request, "privacy")
+
     

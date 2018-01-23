@@ -216,7 +216,7 @@ UTILS.generate_plaintexts = function(pk, min, max) {
 
 
 HELIOS.EncryptedAnswer = Class.extend({
-  init: function(question, answer, pk, progress) {    
+  init: function(question, answer, pk, progress, answer_code) {
     // if nothing in the constructor
     if (question == null)
       return;
@@ -226,7 +226,7 @@ HELIOS.EncryptedAnswer = Class.extend({
     this.answer = answer;
 
     // do the encryption
-    var enc_result = this.doEncryption(question, answer, pk, null, progress);
+    var enc_result = this.doEncryption(question, answer, pk, null, progress, answer_code);
 
     this.choices = enc_result.choices;
     this.randomness = enc_result.randomness;
@@ -234,7 +234,7 @@ HELIOS.EncryptedAnswer = Class.extend({
     this.overall_proof = enc_result.overall_proof;    
   },
   
-  doEncryption: function(question, answer, pk, randomness, progress) {
+  doEncryption: function(question, answer, pk, randomness, progress, answer_code) {
     var choices = [];
     var individual_proofs = [];
     var overall_proof = null;
@@ -284,6 +284,8 @@ HELIOS.EncryptedAnswer = Class.extend({
       if (progress)
         progress.tick();
     }
+
+
 
     if (generate_new_randomness && question.max != null) {
       // we also need proof that the whole thing sums up to the right number

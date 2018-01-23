@@ -720,6 +720,7 @@ class EGZKProof(object):
     }
 
   def verify(self, little_g, little_h, big_g, big_h, p, q, challenge_generator=None):
+    # type: (object, object, object, object, object, object, object) -> object
     """
     Verify a DH tuple proof
     """

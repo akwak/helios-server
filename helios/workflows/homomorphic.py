@@ -41,6 +41,20 @@ class EncryptedAnswer(WorkflowObject):
       
     return plaintexts
 
+  @classmethod
+  def generate_plaintexts_for_assistance(cls, pk, message_to_encode):
+    big_int_message = (int(message_to_encode, 16))
+    plaintext = (algs.EGPlaintext(message_to_encode, pk))
+    return plaintext
+
+  @classmethod
+  def decode_plaintexts_for_assistance(cls, message_to_decode):
+    hex_decrypt = hex(int(message_to_decode.m))
+    hex_decrypt = hex_decrypt[2:]
+    if hex_decrypt[-1] == 'L':
+      hex_decrypt = hex_decrypt[:-1]
+    return hex_decrypt
+
   def verify_plaintexts_and_randomness(self, pk):
     """
     this applies only if the explicit answers and randomness factors are given
@@ -59,6 +73,7 @@ class EncryptedAnswer(WorkflowObject):
     return False
     
   def verify(self, pk, min=0, max=1):
+    # type: (object, object, object) -> object
     possible_plaintexts = self.generate_plaintexts(pk)
     homomorphic_sum = 0
       
@@ -156,7 +171,321 @@ class EncryptedAnswer(WorkflowObject):
       overall_proof = None
     
     return cls(choices, individual_proofs, overall_proof, randomness, answer_indexes)
-    
+
+
+
+
+
+
+
+#HELIOS ASSISTANCE ENCRYPTED_ANSWER
+class EncryptedCodedAnswer(WorkflowObject):
+  """
+  An encrypted answer to a single election question
+  """
+
+  def __init__(self, encrypted_code=None, code_proof=None, encrypted_permutation=None, permutation_proof=None, randomness=None, code_choice=None, permutation=None):
+    self.encrypted_code = encrypted_code
+    self.code_proof = code_proof
+    self.encrypted_permutation=encrypted_permutation
+    self.permutation_proof = permutation_proof
+    self.randomness = randomness
+    self.code_choice=code_choice
+    self.permutation=permutation
+
+   # self.answer = answer
+
+  @classmethod
+  def generate_plaintexts_for_assistance(cls, pk, message_to_encode):
+    hexmessage = message_to_encode.encode('hex')
+    big_int_message = (int(hexmessage, 16))
+    plaintext = (algs.EGPlaintext(big_int_message, pk))
+    return plaintext
+
+  @classmethod
+  def generate_plaintexts(cls, pk, min=0, max=1):
+    plaintexts = []
+    running_product = 1
+
+    # run the product up to the min
+    for i in range(max + 1):
+      # if we're in the range, add it to the array
+      if i >= min:
+        plaintexts.append(algs.EGPlaintext(running_product, pk))
+
+      # next value in running product
+      running_product = (running_product * pk.g) % pk.p
+
+    return plaintexts
+
+
+  @classmethod
+  def decode_plaintexts_for_assistance(cls, message_to_decode):
+    hex_decrypt = hex(int(message_to_decode.m))
+    hex_decrypt = hex_decrypt[2:]
+    if hex_decrypt[-1] == 'L':
+      hex_decrypt = hex_decrypt[:-1]
+    return hex_decrypt
+
+  def verify_plaintexts_and_randomness(self, pk):
+    """
+    this applies only if the explicit answers and randomness factors are given
+    we do not verify the proofs here, that is the verify() method
+    """
+    if not hasattr(self, 'answer'):
+      return False
+
+    for choice_num in range(len(self.choices)):
+      choice = self.choices[choice_num]
+      choice.pk = pk
+
+      # redo the encryption
+      # WORK HERE (paste from below encryption)
+
+    return False
+
+  def verify(self, pk, min=0, max=1):
+    # type: (object, object, object) -> object
+    possible_plaintexts = self.generate_plaintexts(pk)
+    homomorphic_sum = 0
+
+    for choice_num in range(len(self.choices)):
+      choice = self.choices[choice_num]
+      choice.pk = pk
+      individual_proof = self.individual_proofs[choice_num]
+
+      # verify the proof on the encryption of that choice
+      if not choice.verify_disjunctive_encryption_proof(possible_plaintexts, individual_proof,
+                                                        algs.EG_disjunctive_challenge_generator):
+        return False
+
+      # compute homomorphic sum if needed
+      if max != None:
+        homomorphic_sum = choice * homomorphic_sum
+
+    if max != None:
+      # determine possible plaintexts for the sum
+      sum_possible_plaintexts = self.generate_plaintexts(pk, min=min, max=max)
+
+      # verify the sum
+      return homomorphic_sum.verify_disjunctive_encryption_proof(sum_possible_plaintexts, self.overall_proof,
+                                                                 algs.EG_disjunctive_challenge_generator)
+    else:
+      # approval voting, no need for overall proof verification
+      return True
+
+  @classmethod
+  def fromElectionAndAnswer(cls, election, question_num, answer_indexes):
+    """
+    Given an election, a question number, and a list of answers to that question
+    in the form of an array of 0-based indexes into the answer array,
+    produce an EncryptedAnswer that works.
+    """
+    question = election.questions[question_num]
+    answers = question['answers']
+    pk = election.public_key
+
+    # initialize choices, individual proofs, randomness and overall proof
+    choices = [None for a in range(len(answers))]
+    individual_proofs = [None for a in range(len(answers))]
+    overall_proof = None
+    randomness = [None for a in range(len(answers))]
+
+    # possible plaintexts [0, 1]
+    plaintexts = cls.generate_plaintexts(pk)
+
+    # keep track of number of options selected.
+    num_selected_answers = 0;
+
+    # homomorphic sum of all
+    homomorphic_sum = 0
+    randomness_sum = 0
+
+    # min and max for number of answers, useful later
+    min_answers = 0
+    if question.has_key('min'):
+      min_answers = question['min']
+    max_answers = question['max']
+
+    # go through each possible answer and encrypt either a g^0 or a g^1.
+    for answer_num in range(len(answers)):
+      plaintext_index = 0
+
+      # assuming a list of answers
+      if answer_num in answer_indexes:
+        plaintext_index = 1
+        num_selected_answers += 1
+
+      # randomness and encryption
+      randomness[answer_num] = algs.Utils.random_mpz_lt(pk.q)
+      choices[answer_num] = pk.encrypt_with_r(plaintexts[plaintext_index], randomness[answer_num])
+
+      # generate proof
+      individual_proofs[answer_num] = choices[answer_num].generate_disjunctive_encryption_proof(plaintexts,
+                                                                                                plaintext_index,
+                                                                                                randomness[
+                                                                                                  answer_num],
+                                                                                                algs.EG_disjunctive_challenge_generator)
+
+      # sum things up homomorphically if needed
+      if max_answers != None:
+        homomorphic_sum = choices[answer_num] * homomorphic_sum
+        randomness_sum = (randomness_sum + randomness[answer_num]) % pk.q
+
+    # prove that the sum is 0 or 1 (can be "blank vote" for this answer)
+    # num_selected_answers is 0 or 1, which is the index into the plaintext that is actually encoded
+
+    if num_selected_answers < min_answers:
+      raise Exception("Need to select at least %s answer(s)" % min_answers)
+
+    if max_answers != None:
+      sum_plaintexts = cls.generate_plaintexts(pk, min=min_answers, max=max_answers)
+
+      # need to subtract the min from the offset
+      overall_proof = homomorphic_sum.generate_disjunctive_encryption_proof(sum_plaintexts,
+                                                                            num_selected_answers - min_answers,
+                                                                            randomness_sum,
+                                                                            algs.EG_disjunctive_challenge_generator);
+    else:
+      # approval voting
+      overall_proof = None
+
+    return cls(choices, individual_proofs, overall_proof, randomness, answer_indexes)
+
+
+
+
+  @classmethod
+  def fromElectionAndAnswerAssistance(cls, election, question_num, answer_permutation, answer_code):
+    """
+    Given an election, a question number, and a list of answers to that question
+    in the form of an array of 0-based indexes into the answer array,
+    produce an EncryptedAnswer that works.
+    """
+    question = election.questions[question_num]
+    answers = question['answers']
+    pk = election.public_key
+
+    # initialize choices, individual proofs, randomness and overall proof
+
+    encrypted_code = None
+    code_proof = None
+    encrypted_permutation = [None for a in range(len(answers))]
+    permutation_proof = [None for a in range(len(answers))]
+    randomness = [None for a in range(len(answers))]
+    code_choice = answer_code
+    permutation = answer_permutation
+
+
+    code_plaintext = cls.generate_plaintexts_for_assistance(pk, answer_code)
+
+    perm_plaintexts = cls.generate_plaintexts(pk, 0, len(answers)-1)
+
+
+
+    # keep track of number of options selected.
+    num_selected_answers = 0;
+
+    # homomorphic sum of all
+    homomorphic_sum = 0
+    randomness_sum = 0
+
+    # min and max for number of answers, useful later
+    min_answers = 0
+    if question.has_key('min'):
+      min_answers = question['min']
+    max_answers = question['max']
+
+    # go through each possible answer and encrypt either a g^0 or a g^1.
+    for answer_num in range(len(answers)):
+      plaintext_index = answer_permutation[answer_num]
+      # randomness and encryption
+      randomness[answer_num] = algs.Utils.random_mpz_lt(pk.q)
+      encrypted_permutation[answer_num] = pk.encrypt_with_r(perm_plaintexts[plaintext_index], randomness[answer_num])
+
+      # generate proof
+      permutation_proof[answer_num] = encrypted_permutation[answer_num].generate_disjunctive_encryption_proof(perm_plaintexts,
+                                                                                                              plaintext_index,
+                                                                                                              randomness[answer_num],
+                                                                                                              algs.EG_disjunctive_challenge_generator)
+
+      # sum things up homomorphically if needed
+      if max_answers != None:
+        homomorphic_sum = encrypted_permutation[answer_num] * homomorphic_sum
+        randomness_sum = (randomness_sum + randomness[answer_num]) % pk.q
+    # prove that the sum is 0 or 1 (can be "blank vote" for this answer)
+    # num_selected_answers is 0 or 1, which is the index into the plaintext that is actually encoded
+    print(code_plaintext)
+    encrypted_code = pk.encrypt_with_r(code_plaintext, randomness[0])
+
+# if num_selected_answers < min_answers:
+#    raise Exception("Need to select at least %s answer(s)" % min_answers)
+
+  # if max_answers != None:
+  #   sum_plaintexts = cls.generate_plaintexts(pk, min=min_answers, max=max_answers)
+  #
+  #   # need to subtract the min from the offset
+  #   overall_proof = homomorphic_sum.generate_disjunctive_encryption_proof(sum_plaintexts,
+  #                                                                         num_selected_answers - min_answers,
+  #                                                                         randomness_sum,
+  #                                                                         algs.EG_disjunctive_challenge_generator);
+  # else:
+  #   # approval voting
+  #   overall_proof = None
+
+
+    return cls(encrypted_code, code_proof, encrypted_permutation, permutation_proof, randomness, code_choice, permutation)
+
+
+
+
+# HELIOS ASSISTANCE BALLOT CLASS
+class EncryptedBoothVote(WorkflowObject):
+  def __init__(self):
+    self.encrypted_assist_answers = None
+
+  @property
+  def datatype(self):
+    # FIXME
+    return "legacy/EncryptedBoothVote"
+
+  def _answers_get(self):
+    return self.encrypted_answers
+
+  def _answers_set(self, value):
+    self.encrypted_answers = value
+
+  answers = property(_answers_get, _answers_set)
+
+  def verify(self, election):
+    # # type: (object) -> object
+    # # right number of answers
+    # if len(self.encrypted_answers) != len(election.questions):
+    #   return False
+
+    # check hash
+    if self.election_hash != election.hash:
+      # print "%s / %s " % (self.election_hash, election.hash)
+      return False
+
+    # check ID
+    if self.election_uuid != election.uuid:
+      return False
+
+  @classmethod
+  def fromElectionAndAnswers(cls, election, answer_permutation, answer_code):
+    pk = election.public_key
+    # each answer is an index into the answer array
+    encrypted_answers = [EncryptedCodedAnswer.fromElectionAndAnswerAssistance(election, answer_num, answer_permutation[answer_num], answer_code) for
+                         answer_num in range(len(answer_permutation))]
+    return_val = cls()
+    return_val.encrypted_answers = encrypted_answers
+    return_val.election_hash = election.hash
+    return_val.election_uuid = election.uuid
+
+    return return_val
+
+
 # WORK HERE
 
 class EncryptedVote(WorkflowObject):
@@ -180,6 +509,7 @@ class EncryptedVote(WorkflowObject):
   answers = property(_answers_get, _answers_set)
 
   def verify(self, election):
+    # type: (object) -> object
     # right number of answers
     if len(self.encrypted_answers) != len(election.questions):
       return False
@@ -263,7 +593,7 @@ class Tally(WorkflowObject):
   @property
   def datatype(self):
     return "legacy/Tally"
-  
+
   def __init__(self, *args, **kwargs):
     super(Tally, self).__init__()
     
