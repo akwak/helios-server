@@ -5,7 +5,9 @@ from base64 import b64encode, b64decode
 from django.core.urlresolvers import reverse
 from django.http import HttpResponse
 
-from helios.crypto.algs import EGCiphertext
+from helios.crypto.algs import EGCiphertext, EGZKDisjunctiveProof, EGZKProof
+from helios.crypto.electionalgs import DLogTable
+from helios.models import BallotAssistance, Election
 from helios.views import one_election_cast_confirm as caster
 import settings
 from helios.crypto import elgamal
@@ -41,7 +43,7 @@ signer = PKCS1_v1_5.new(RSAkey)
 system_session_id = ''
 user_session_id = ''
 
-colors = ['red','blue','grey', 'yellow', 'green']
+colors = ['red','blue','grey', 'green', 'purple', 'brown']
 DATA_FILENAME = 'sessions_1'
 VOTE_CODES_FILENAME='vote_codes'
 # for test only
@@ -135,6 +137,13 @@ def set_user_session_id(request):
     json_user_session_id = str(request_json_body[request_session_id_holder])
     election_id = request_json_body[election_id_holder]
 
+    old_session=request_json_body['generated_session_id']
+
+
+    vote_session = BallotAssistance.get_by_session(session=old_session)
+    vote_session.session = json_user_session_id
+    vote_session.save()
+
     session_dict = {}
     session_dict[request_session_id_holder] = json_user_session_id
     session_dict[election_id_holder] = election_id
@@ -164,15 +173,7 @@ def load_list(SESSIONS_FILENAME):
     return feeds
 
 
-# def get_session_id(request):
-#     global system_session_id
-#     global user_session_id
-#
-#     if  'system_session_id' not in globals() and not 'user_session_id' in globals():
-#         return HttpResponse("not defined yet")
-#     return HttpResponse(system_session_id + user_session_id)
-
-def get_session_id(request):
+def get_session_id_old(request):
     requested_session_id = request.POST['session_id']
     sessions = load_list(DATA_FILENAME)
 
@@ -186,12 +187,23 @@ def get_session_id(request):
 
     return HttpResponse(full_session_string + ';' + election_id)
 
+def get_session_id(request):
+    requested_session_id = request.POST['session_id']
+
+#    sessions = load_list(DATA_FILENAME)
+
+    vote_session = BallotAssistance.get_by_qr_session(requested_session_id)
+
+    return HttpResponse(vote_session.session + ';' + vote_session.election.uuid)
+
 
 #test now
-def get_answer_tokens(request):
+@election_view()
+def get_answer_tokens(request,election):
+    question = election.questions[0]
+
     response_dict = {}
-    response_dict['colors'] = colors[:4]
-    response_dict['codes'] =  ['XXX', 'AAA', 'XXY','23A']
+    response_dict['colors'] = colors[:len(question['answers'])]
     response_json = utils.to_json(response_dict)
 
     return HttpResponse(response_json)
@@ -200,13 +212,12 @@ def get_answer_tokens(request):
 def post_vote_codes(request, election):
     requested_session_id = request.POST['session_id']
     session_codes_json = request.POST['vote_codes']
-    vote_codes = session_codes_json.split(';')
 
-    entry = {}
-    entry['session_id'] = requested_session_id
-    entry['vote_codes'] = vote_codes
+    session_vote = BallotAssistance.get_by_election_and_session(election=election, session=requested_session_id)
+    session_vote.cast_codes = session_codes_json
+    session_vote.save()
 
-    add_to_file(VOTE_CODES_FILENAME, entry)
+    #add_to_file(VOTE_CODES_FILENAME, entry)
     return HttpResponse("ok")
 
 
@@ -225,33 +236,55 @@ def encrypt_ballot(request, election):
 
     #if hasattr(encrypted_vote, "session_id"):
     session_id = encrypted_vote['session_id']
-    vote_codes_list = load_list(VOTE_CODES_FILENAME)
+
+    vote_session = BallotAssistance.get_by_election_and_session(election=election,session=session_id)
+
     vote_codes = []
-    for vote_code_entry in vote_codes_list:
-        if session_id == vote_code_entry['session_id']:
-            vote_codes = vote_code_entry['vote_codes']
-            break
+    if vote_session.cast_codes is not None:
+        vote_codes = vote_session.cast_codes.split(';')
+
+    answer_code_ciphertext = parse_ciphertext(encrypted_vote['answers'][0]['encrypted_code'], election.public_key)
 
 
-    code_ciphertext_json = (encrypted_vote['answers'][0]['encrypted_code'])
-    code_ciphertext = EGCiphertext()
-    code_ciphertext.alpha = int(code_ciphertext_json['alpha'])
-    code_ciphertext.beta = int(code_ciphertext_json['beta'])
+    permutation_ciphertexts = []
+    for json_ciphertext in encrypted_vote['answers'][0]['encrypted_permutation']:
+        permutation_ciphertexts.append(parse_ciphertext(json_ciphertext))
+
+    decrypted_permutation = []
 
     secret_key = None
     hex_decrypt = ""
     trustee = election.get_helios_trustee()
     if trustee is not None:
+
+        dlog_table = DLogTable(base=trustee.public_key.g, modulus=trustee.public_key.p)
+        dlog_table.precompute(len(permutation_ciphertexts))
+
         secret_key = trustee.secret_key
-        m_decrypt = secret_key.decrypt(code_ciphertext)
+        m_decrypt = secret_key.decrypt(answer_code_ciphertext)
         hex_decrypt = bigint_to_string(m_decrypt)
 
-    selected_answer = -1
-    for i in range(len(vote_codes)):
-        if vote_codes[i] == unicode(hex_decrypt):
-            selected_answer = i
+        verify_proof = (answer_code_ciphertext.verify_encryption_proof(m_decrypt, EGZKProof.from_dict(encrypted_vote['answers'][0]['code_proof'])))
+        print(verify_proof)
 
-    if selected_answer == -1:
+
+
+        for cipher in permutation_ciphertexts:
+            raw_value = secret_key.decrypt(cipher)
+            decrypted_permutation.append(dlog_table.lookup(raw_value.m))
+
+
+
+    selected_answer = -1
+    #map first_bijection
+    selected_answer = vote_codes.index(unicode(hex_decrypt))
+    selected_answer = decrypted_permutation.index(selected_answer)
+
+    # for i in range(len(vote_codes)):
+    #     if vote_codes[i] == unicode(hex_decrypt):
+    #         selected_answer = i
+
+    if selected_answer == -1 or selected_answer > len(decrypted_permutation):
         return HttpResponse(request)
 
    # encrypted_answers =  (encrypted_vote['answers'])
@@ -259,6 +292,8 @@ def encrypt_ballot(request, election):
         print 'good code'
         mocked_answers = [[selected_answer]]
         ev = homomorphic.EncryptedVote.fromElectionAndAnswers(election, mocked_answers)
+        vote_session.vote_code = unicode(hex_decrypt)
+        vote_session.save()
 
     request.POST = request.POST.copy()
     json = unicode(ev.ld_object.serialize(), 'utf-8')
@@ -266,5 +301,42 @@ def encrypt_ballot(request, election):
     save_in_session_across_logouts(request, 'encrypted_vote', json)
     return HttpResponseRedirect("%s%s" % (settings.SECURE_URL_HOST, reverse(caster, args=[election.uuid])))
 
+
+def parse_ciphertext(code_ciphertext_json, pk=None):
+    code_ciphertext = EGCiphertext.from_dict(code_ciphertext_json, pk)
+    return code_ciphertext
+
+
 def test_el_gamal_string_encryption(request):
     pass
+
+@election_view()
+def create_session_vote(request, election):
+    if request.method != "POST":
+        pass
+
+    session_json = utils.from_json(request.body)
+    if session_json is None:
+        pass
+
+    session_id = session_json['session_json']
+
+    vote_session = BallotAssistance(session = session_id, election = election, qr_session = session_id)
+    vote_session.save()
+    return HttpResponse("ok")
+
+
+    pass
+
+@election_view()
+def check_vote_code(request, election):
+    if request.method != "POST":
+        pass
+
+    session_id = request.POST['session_id']
+
+    vote_session = BallotAssistance.get_by_election_and_session(session = session_id, election = election)
+    if vote_session.vote_code is not None:
+        return HttpResponse(vote_session.vote_code)
+    else:
+        return HttpResponse("NONE")

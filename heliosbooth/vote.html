@@ -5,6 +5,9 @@
   <title>Helios Voting Booth</title>
   <link rel="stylesheet" type="text/css" href="css/booth.css" />
   <link rel="stylesheet" type="text/css" href="css/forms.css" />
+    <!-- Latest compiled and minified CSS -->
+  <!--  <link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.7/css/bootstrap.min.css" integrity="sha384-BVYiiSIFeK1dGmJRAkycuHAHRg32OmUcww7on3RYdg4Va+PmSTsz/K68vbdEjh4u" crossorigin="anonymous">
+  -->
 
   <script language="javascript" src="js/jscrypto/class.js"></script>
   <script language="javascript" src="js/jscrypto/bigint.dummy.js"></script>
@@ -171,6 +174,7 @@ BOOTH.setup_workers = function(election_raw_json) {
 //Assistance
 BOOTH.session_id = make_id();
 
+
 function escape_html(content) {
   return $('<div/>').text(content).html();
 }
@@ -223,6 +227,7 @@ BOOTH.setup_election = function(raw_json, election_metadata) {
         var ordering = new Array(question.answers.length);
         $(ordering).each(function(j, answer) {ordering[j]=j;});
         question.colors = BOOTH.colors;
+        shuffleArray(ordering);
 
         BOOTH.election.question_color_orderings[i] = ordering;
     });
@@ -230,6 +235,8 @@ BOOTH.setup_election = function(raw_json, election_metadata) {
 
   $('#header').processTemplate({'election' : BOOTH.election, 'election_metadata': BOOTH.election_metadata, 'qr_data': BOOTH.qr_data, "session_id": BOOTH.session_id});
   $('#footer').processTemplate({'election' : BOOTH.election, 'election_metadata': BOOTH.election_metadata});
+
+  $.post('/assistance/elections/' + BOOTH.election.uuid + '/create_session/', JSON.stringify({'session_json': BOOTH.session_id}), function(result) {console.log(result);});
   BOOTH.setup_ballot();
 };
 
@@ -680,7 +687,8 @@ BOOTH.cast_ballot = function() {
 // clash attack protection
 BOOTH.submit_session_id = function() {
     user_session_value = document.getElementById('my_session_token').value;
-    var dict_to_send = {'session_id': BOOTH.session_id + user_session_value};
+    var dict_to_send = {'generated_session_id': BOOTH.session_id,
+        'session_id': BOOTH.session_id + user_session_value};
     dict_to_send['election_id'] = BOOTH.election.uuid;
     console.log(dict_to_send)
     $.post('/assistance/set_user_session_id', JSON.stringify(dict_to_send), function(result) {

@@ -107,3 +107,20 @@ h3 {
 #loading_div {
   display: none;
 }
+
+.parent
+{
+    display: table;
+    width: 100%; /*Optional*/
+    table-layout: fixed; /*Optional*/
+    border-spacing: 10px; /*Optional*/
+}
+.answer-center, .answer-left, .answer-right
+{
+    display: table-cell;
+
+}
+
+.answer-center {
+  color:white;text-align:center; margin:1px;
+}

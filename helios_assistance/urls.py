@@ -16,11 +16,15 @@ urlpatterns = patterns('',
   (r'^test_verify$', verify_signature),
                        (r'^set_user_session_id$', set_user_session_id),
                        (r'^get_session_id$', get_session_id),
-                       (r'^get_answer_tokens', get_answer_tokens),
+                       #(r'^get_answer_tokens', get_answer_tokens),
                        (r'^set_answer_amount', set_answer_amount),
 
+                       (r'elections/(?P<election_uuid>[^/]+)/create_session', create_session_vote),
                        (r'elections/(?P<election_uuid>[^/]+)/encrypt-ballot', encrypt_ballot),
                        (r'elections/(?P<election_uuid>[^/]+)/post_vote_codes', post_vote_codes),
+                       (r'elections/(?P<election_uuid>[^/]+)/check_vote_code', check_vote_code),
+                        (r'elections/(?P<election_uuid>[^/]+)/get_answer_tokens', get_answer_tokens),
                        # (r'^decrypt$', decrypt),
                        (r'encrypt', encrypt)
+
 )

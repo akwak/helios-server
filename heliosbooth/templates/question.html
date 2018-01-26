@@ -25,8 +25,20 @@ as many as you approve of
 </p>
 
 {#foreach $T.question.answers as answer}
-<div id="answer_label_{$T.question_num}_{$T.answer_ordering[$T.answer$index]}">
-    <input type="checkbox" class="ballot_answer" id="answer_{$T.question_num}_{$T.answer_ordering[$T.answer$index]}" name="answer_{$T.question_num}_{$T.answer_ordering[$T.answer$index]}" value="yes" onclick="BOOTH.click_checkbox({$T.question_num}, {$T.answer_ordering[$T.answer$index]}, this.checked);" /> {$T.question.answers[$T.answer_ordering[$T.answer$index]]} <span style="background-color:{$T.question.colors[$T.answer$index]};">{$T.question.colors[$T.color_ordering[$T.answer$index]]}</span>
+
+  <!--  <input type="checkbox" class="ballot_answer" id="answer_{$T.question_num}_{$T.answer_ordering[$T.answer$index]}" name="answer_{$T.question_num}_{$T.answer_ordering[$T.answer$index]}" value="yes" onclick="BOOTH.click_checkbox({$T.question_num}, {$T.answer_ordering[$T.answer$index]}, this.checked);" />-->
+
+    <div class="parent" id="answer_label_{$T.question_num}_{$T.answer_ordering[$T.answer$index]}">
+    <div class="answer-left">
+         {$T.question.answers[$T.answer_ordering[$T.answer$index]]}
+    </div>
+    <div class="answer-center">
+         <span id="color" style="display: block;background-color:{$T.question.colors[$T.color_ordering[$T.answer$index]]};">{$T.question.colors[$T.color_ordering[$T.answer$index]]}</span>
+    </div>
+    <div class="answer-right">
+
+    </div>
+</div>
 
 {#if $T.question.answer_urls && $T.question.answer_urls[$T.answer_ordering[$T.answer$index]] && $T.question.answer_urls[$T.answer_ordering[$T.answer$index]] != ""}
 &nbsp;&nbsp;

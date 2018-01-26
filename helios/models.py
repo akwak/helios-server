@@ -1179,3 +1179,23 @@ class Trustee(HeliosModel):
     # verify_decryption_proofs(self, decryption_factors, decryption_proofs, public_key, challenge_generator):
     return self.election.encrypted_tally.verify_decryption_proofs(self.decryption_factors, self.decryption_proofs, self.public_key, algs.EG_fiatshamir_challenge_generator)
     
+class BallotAssistance(HeliosModel):
+  election = models.ForeignKey(Election)
+
+  uuid = models.CharField(max_length=50, null=True)
+  session = models.CharField(max_length=50, null=True)
+  cast_codes = models.CharField(max_length=50, null=True)
+  vote_code = models.CharField(max_length=50, null=True)
+  qr_session = models.CharField(max_length=50, null=True)
+
+  @classmethod
+  def get_by_election_and_session(cls, election, session):
+    return cls.objects.get(election = election, session = session)
+
+  @classmethod
+  def get_by_session(cls, session):
+    return cls.objects.get(session = session)
+
+  @classmethod
+  def get_by_qr_session(cls, qr_session):
+    return cls.objects.get(qr_session = qr_session)

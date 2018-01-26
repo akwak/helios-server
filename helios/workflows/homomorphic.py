@@ -41,19 +41,6 @@ class EncryptedAnswer(WorkflowObject):
       
     return plaintexts
 
-  @classmethod
-  def generate_plaintexts_for_assistance(cls, pk, message_to_encode):
-    big_int_message = (int(message_to_encode, 16))
-    plaintext = (algs.EGPlaintext(message_to_encode, pk))
-    return plaintext
-
-  @classmethod
-  def decode_plaintexts_for_assistance(cls, message_to_decode):
-    hex_decrypt = hex(int(message_to_decode.m))
-    hex_decrypt = hex_decrypt[2:]
-    if hex_decrypt[-1] == 'L':
-      hex_decrypt = hex_decrypt[:-1]
-    return hex_decrypt
 
   def verify_plaintexts_and_randomness(self, pk):
     """
@@ -246,7 +233,7 @@ class EncryptedCodedAnswer(WorkflowObject):
 
   def verify(self, pk, min=0, max=1):
     # type: (object, object, object) -> object
-    possible_plaintexts = self.generate_plaintexts(pk)
+    possible_plaintexts = self.generate_plaintexts(pk,min,max)
     homomorphic_sum = 0
 
     for choice_num in range(len(self.choices)):
@@ -415,8 +402,8 @@ class EncryptedCodedAnswer(WorkflowObject):
         randomness_sum = (randomness_sum + randomness[answer_num]) % pk.q
     # prove that the sum is 0 or 1 (can be "blank vote" for this answer)
     # num_selected_answers is 0 or 1, which is the index into the plaintext that is actually encoded
-    print(code_plaintext)
     encrypted_code = pk.encrypt_with_r(code_plaintext, randomness[0])
+    code_proof = encrypted_code.generate_encryption_proof(answer_code, randomness[0], algs.DLog_challenge_generator)
 
 # if num_selected_answers < min_answers:
 #    raise Exception("Need to select at least %s answer(s)" % min_answers)

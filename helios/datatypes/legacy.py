@@ -48,7 +48,7 @@ class EncryptedCodedAnswer(LegacyObject):
     FIELDS = ['encrypted_code', 'code_proof', 'encrypted_permutation', 'permutation_proof', 'randomness', 'code_choice', 'permutation']
     STRUCTURED_FIELDS = {
         'encrypted_code': 'legacy/EGCiphertext',
-        'code_proof': 'legacy/EGZKDisjunctiveProof',
+        'code_proof': 'legacy/EGZKProof',
         'encrypted_permutation': arrayOf('legacy/EGCiphertext'),
         'permutation_proof': arrayOf('legacy/EGZKDisjunctiveProof'),
         'randomness' : arrayOf('core/BigInteger')
