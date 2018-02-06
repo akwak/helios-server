@@ -173,24 +173,10 @@ def load_list(SESSIONS_FILENAME):
     return feeds
 
 
-def get_session_id_old(request):
-    requested_session_id = request.POST['session_id']
-    sessions = load_list(DATA_FILENAME)
-
-    full_session_string = ""
-    election_id = ""
-    for ses in sessions:
-        if requested_session_id in ses['session_id']:
-            full_session_string=ses['session_id']
-            election_id = ses['election_id']
-            break
-
-    return HttpResponse(full_session_string + ';' + election_id)
 
 def get_session_id(request):
     requested_session_id = request.POST['session_id']
 
-#    sessions = load_list(DATA_FILENAME)
 
     vote_session = BallotAssistance.get_by_qr_session(requested_session_id)
 
