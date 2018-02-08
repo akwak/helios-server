@@ -25,7 +25,7 @@
   <script language="javascript" src="js/jscrypto/sha1.js"></script>
   <script language="javascript" src="js/jscrypto/sha2.js"></script>
   <script language="javascript" src="js/jscrypto/helios.js"></script>
-  
+
   <!-- <script language="javascript" src="js/20160507-helios-booth-compressed.js"></script> -->
   <script language="javascript" src="js/qrcode.min.js"></script>
 
@@ -206,7 +206,7 @@ BOOTH.setup_election = function(raw_json, election_metadata) {
 
   // whether the election wants candidate order randomization or not
   // we set up an ordering array so that the rest of the code is
-  // less error-prone. 
+  // less error-prone.
   BOOTH.election.question_answer_orderings = [];
   $(BOOTH.election.questions).each(function(i, question) {
     var ordering = new Array(question.answers.length);
@@ -231,6 +231,7 @@ BOOTH.setup_election = function(raw_json, election_metadata) {
 
         BOOTH.election.question_color_orderings[i] = ordering;
     });
+
 
 
   $('#header').processTemplate({'election' : BOOTH.election, 'election_metadata': BOOTH.election_metadata, 'qr_data': BOOTH.qr_data, "session_id": BOOTH.session_id});
@@ -646,10 +647,30 @@ BOOTH.seal_ballot = function() {
 };
 
 BOOTH.audit_ballot = function() {
-    BOOTH.audit_trail = BOOTH.encrypted_ballot_with_plaintexts_serialized || $.toJSON(BOOTH.encrypted_ballot.get_audit_trail());
+   $.post('/assistance/elections/' + BOOTH.election.uuid + '/audit_ballot_election/', {'session_id': BOOTH.session_id,'answers_json': BOOTH.encrypted_ballot_with_plaintexts_serialized}, function(result) {
+       if(result == null)  {
+           console.log(result);
+           return;
+       }
+       BOOTH.audit_trail = BOOTH.encrypted_ballot_with_plaintexts_serialized || $.toJSON(BOOTH.encrypted_ballot.get_audit_trail());
+       BOOTH.audit_colors = BOOTH.colors;
+       BOOTH.audit_codes = JSON.parse(result);
+       console.log("audit codes" + BOOTH.audit_codes)
 
-    BOOTH.show($('#audit_div')).processTemplate({'audit_trail' : BOOTH.audit_trail, 'election_url' : BOOTH.election_url});
+       window.setTimeout(BOOTH._after_audit_fetch, 0);
+
+      // BOOTH.show($('#audit_div')).processTemplate({'audit_code_choice' : BOOTH.answer_code , 'audit_colors' :  BOOTH.audit_colors,  'audit_permutation': BOOTH.election.question_color_orderings, 'audit_codes' : BOOTH.audit_codes, 'election_url' : BOOTH.election_url, 'question' : BOOTH.election.questions[0]});
+
+   });
+  //  BOOTH.audit_trail = BOOTH.encrypted_ballot_with_plaintexts_serialized || $.toJSON(BOOTH.encrypted_ballot.get_audit_trail());
+//
+  //  BOOTH.show($('#audit_div')).processTemplate({'audit_trail' : BOOTH.audit_trail, 'election_url' : BOOTH.election_url});
 };
+
+BOOTH._after_audit_fetch = function() {
+    $('#audit_div').processTemplate({ 'audit_codes' : BOOTH.audit_codes, 'audit_code_choice' : BOOTH.answer_code, 'audit_colors' :  BOOTH.audit_colors, 'audit_permutation': BOOTH.election.question_color_orderings[0], 'question' : BOOTH.election.questions[0] })
+    BOOTH.show($('#audit_div'));
+}
 
 BOOTH.post_audited_ballot = function() {
   $.post(BOOTH.election_url + "/post-audited-ballot", {'audited_ballot': BOOTH.audit_trail}, function(result) {

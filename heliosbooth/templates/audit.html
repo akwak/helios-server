@@ -10,15 +10,26 @@ To cast a ballot, you must click the "Back to Voting" button below, re-encrypt i
 <b>Why?</b> Helios prevents you from auditing and casting the same ballot to provide you with some protection against coercion.
 </p>
 
-<p>
-<b>Now what?</b> <a onclick="$('#audit_trail').select(); return false;" href="#">Select your ballot audit info</a>, copy it to your clipboard, then use the <a target="_blank" href="single-ballot-verify.html?election_url={$T.election_url}">ballot verifier</a> to verify it.<br />
-Once you're satisfied, click the "back to voting" button to re-encrypt and cast your ballot.
-</p>
+{#foreach $T.question.answers as cand}
+
+
+    <div class="parent" id="answer_label_{$T.cand$index}">
+    <div class="answer-left">
+         {$T.question.answers[$T.cand$index]}
+    </div>
+    <div class="answer-center">
+              <span id="color" style="display: block;background-color:{$T.audit_colors[$T.audit_permutation[$T.cand$index]]};">{$T.audit_colors[$T.audit_permutation[$T.cand$index]]}</span>
+    </div>
+    <div class="answer-right">
+            {$T.audit_codes[$T.audit_permutation[$T.cand$index]]}
+    </div>
+</div>
+
+{#/for}
+
+Your submitted code is {$T.audit_code_choice}
 
 <form action="#">
-<textarea name="audit_trail" id="audit_trail" cols="80" rows="10" wrap="soft">
-{$T.audit_trail}
-</textarea>
 <br /><br />
 Before going back to voting,<br />
 you can post this audited ballot to the Helios tracking center so that others might double-check the verification of this ballot.
@@ -27,7 +38,7 @@ you can post this audited ballot to the Helios tracking center so that others mi
 <br /><br />
 <input type="button" value="back to voting" onclick="BOOTH.reset_ciphertexts();BOOTH.seal_ballot();" class="pretty" />
 &nbsp; &nbsp;&nbsp;
-<input type="button" value="post audited ballot to tracking center" onclick="$(this).attr('disabled', 'disabled');BOOTH.post_audited_ballot();" id="post_audited_ballot_button" class="pretty" style="font-size:0.8em;"/>
+<!--<input type="button" value="post audited ballot to tracking center" onclick="$(this).attr('disabled', 'disabled');BOOTH.post_audited_ballot();" id="post_audited_ballot_button" class="pretty" style="font-size:0.8em;"/> -->
 
 </form>
 

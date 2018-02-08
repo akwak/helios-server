@@ -326,3 +326,16 @@ def check_vote_code(request, election):
         return HttpResponse(vote_session.vote_code)
     else:
         return HttpResponse("NONE")
+
+@election_view()
+def audit_ballot_election(request, election):
+    session_id = request.POST['session_id']
+    answers_json = utils.from_json(request.POST['answers_json'])
+    selected_vote_code = answers_json['answers'][0]['code_choice']
+    permutation = answers_json['answers'][0]['permutation']
+    vote_session = BallotAssistance.get_by_election_and_session(session=session_id, election=election)
+    vote_session.vote_code=selected_vote_code
+    vote_session.save()
+    vote_codes = vote_session.cast_codes.split(';')
+    json_vote = utils.to_json(vote_codes)
+    return HttpResponse(json_vote)

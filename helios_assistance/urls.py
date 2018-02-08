@@ -24,6 +24,7 @@ urlpatterns = patterns('',
                        (r'elections/(?P<election_uuid>[^/]+)/post_vote_codes', post_vote_codes),
                        (r'elections/(?P<election_uuid>[^/]+)/check_vote_code', check_vote_code),
                         (r'elections/(?P<election_uuid>[^/]+)/get_answer_tokens', get_answer_tokens),
+                        (r'elections/(?P<election_uuid>[^/]+)/audit_ballot_election', audit_ballot_election),
                        # (r'^decrypt$', decrypt),
                        (r'encrypt', encrypt)
 
